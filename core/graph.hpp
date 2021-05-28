@@ -27,11 +27,12 @@ Copyright (c) 2015-2016 Xiaowei Zhu, Tsinghua University
 #include <numa.h>
 #include <omp.h>
 
+#include <functional>
 #include <string>
 #include <vector>
 #include <thread>
 #include <mutex>
-#include <functional>
+#include <utility>
 
 #include "core/atomic.hpp"
 #include "core/bitmap.hpp"
@@ -238,7 +239,7 @@ public:
 
   // deallocate a vertex array
   template<typename T>
-  T * dealloc_vertex_array(T * array) {
+  void dealloc_vertex_array(T * array) {
     numa_free(array, sizeof(T) * vertices);
   }
 
@@ -335,6 +336,7 @@ public:
       }
     }
     assert(false);
+    return -1;
   }
 
   int get_local_partition_id(VertexId v_i){
@@ -344,6 +346,7 @@ public:
       }
     }
     assert(false);
+    return -1;
   }
 
   // load a directed graph and make it undirected

@@ -29,6 +29,7 @@ inline bool cas(T * ptr, T old_val, T new_val) {
     return __sync_bool_compare_and_swap((int*)ptr, *((int*)&old_val), *((int*)&new_val));
   } else {
     assert(false);
+    return false;
   }
 }
 
