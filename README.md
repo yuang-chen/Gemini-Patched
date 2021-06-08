@@ -1,7 +1,19 @@
 # Gemini-Patched
-fix some annoying warnings, and put more concrete info. about its environment requirement.
-<<<<<<< HEAD
+fix some annoying warnings
 
+### number of vertices:
+* lj - 4847572
+* wl - 18268993
+* mpi - 52579683
+* pld - 42889800 
+* tw - 41652230 
+* mpi - 52579683 
+* ur_half - 67108863
+* kr_half - 67108863
+
+
+# Gemini
+A computation-centric distributed graph processing system.
 
 ## Quick Start
 Gemini uses **MPI** for inter-process communication and **libnuma** for NUMA-aware memory allocation.
@@ -37,6 +49,3 @@ srun -N 8 ./toolkits/pagerank /path/to/twitter-2010.binedgelist 41652230 20
 Xiaowei Zhu, Wenguang Chen, Weimin Zheng, and Xiaosong Ma.
 Gemini: A Computation-Centric Distributed Graph Processing System.
 12th USENIX Symposium on Operating Systems Design and Implementation (OSDI '16).
-
-=======
->>>>>>> main

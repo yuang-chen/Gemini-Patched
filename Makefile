@@ -1,5 +1,5 @@
 ROOT_DIR= $(shell pwd)
-TARGETS= toolkits/bc toolkits/bfs toolkits/cc toolkits/pagerank toolkits/sssp
+TARGETS= toolkits/pagerank #toolkits/bc toolkits/bfs toolkits/cc toolkits/sssp
 MACROS= 
 
 MPICXX= mpiicpc

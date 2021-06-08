@@ -23,7 +23,7 @@ Copyright (c) 2014-2015 Xiaowei Zhu, Tsinghua University
 
 const double d = (double)0.85;
 
-void compute(Graph<Empty> * graph, int iterations) {
+double compute(Graph<Empty> * graph, int iterations) {
   double exec_time = 0;
   exec_time -= get_time();
 
@@ -101,7 +101,7 @@ void compute(Graph<Empty> * graph, int iterations) {
 
   exec_time += get_time();
   if (graph->partition_id==0) {
-    printf("exec_time=%lf(s)\n", exec_time);
+    printf("exec_time (s): %lf \n", exec_time);
   }
 
   double pr_sum = graph->process_vertices<double>(
@@ -110,9 +110,9 @@ void compute(Graph<Empty> * graph, int iterations) {
     },
     active
   );
-  if (graph->partition_id==0) {
-    printf("pr_sum=%lf\n", pr_sum);
-  }
+  // if (graph->partition_id==0) {
+  //   printf("pr_sum=%lf\n", pr_sum);
+  // }
 
   graph->gather_vertex_array(curr, 0);
   if (graph->partition_id==0) {
@@ -120,31 +120,47 @@ void compute(Graph<Empty> * graph, int iterations) {
     for (VertexId v_i=0;v_i<graph->vertices;v_i++) {
       if (curr[v_i] > curr[max_v_i]) max_v_i = v_i;
     }
-    printf("pr[%u]=%lf\n", max_v_i, curr[max_v_i]);
+    //printf("pr[%u]=%lf\n", max_v_i, curr[max_v_i]);
   }
 
   graph->dealloc_vertex_array(curr);
   graph->dealloc_vertex_array(next);
   delete active;
+
+  return exec_time;
 }
 
 int main(int argc, char ** argv) {
   MPI_Instance mpi(&argc, &argv);
 
-  if (argc<4) {
-    printf("pagerank [file] [vertices] [iterations]\n");
+  if (argc<3) {
+    printf("pagerank [file] [vertices] [iterations] [rounds]\n");
     exit(-1);
   }
+  int iterations = 10;
+  int rounds = 5;
 
   Graph<Empty> * graph;
   graph = new Graph<Empty>();
   graph->load_directed(argv[1], std::atoi(argv[2]));
-  int iterations = std::atoi(argv[3]);
 
-  compute(graph, iterations);
-  for (int run=0;run<5;run++) {
-    compute(graph, iterations);
+  if(argc == 4) iterations = std::atoi(argv[3]);
+
+  if(argc == 5) {
+    iterations = std::atoi(argv[3]);
+    rounds = std::atoi(argv[4]);
   }
+  
+  double aver_time = 0;
+  for (int run=0;run<rounds;run++) {
+     aver_time += compute(graph, iterations);
+  }
+
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  if(world_rank==0)
+      printf("aver_time = %lf\n", aver_time/rounds);
+
 
   delete graph;
   return 0;
