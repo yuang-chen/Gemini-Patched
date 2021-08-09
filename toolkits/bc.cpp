@@ -21,7 +21,9 @@ Copyright (c) 2014-2015 Xiaowei Zhu, Tsinghua University
 
 #define COMPACT 0
 
-void compute(Graph<Empty> * graph, VertexId root) {
+
+
+double compute(Graph<Empty> * graph, VertexId root) {
   double exec_time = 0;
   exec_time -= get_time();
 
@@ -42,13 +44,17 @@ void compute(Graph<Empty> * graph, VertexId root) {
   graph->fill_vertex_array(num_paths, 0.0);
   num_paths[root] = 1.0;
   VertexId i_i;
+  #ifdef SHOW
   if (graph->partition_id==0) {
     printf("forward\n");
   }
+  #endif
   for (i_i=0;active_vertices>0;i_i++) {
+    #ifdef SHOW
     if (graph->partition_id==0) {
       printf("active(%d)>=%u\n", i_i, active_vertices);
     }
+    #endif 
     VertexSubset * active_out = graph->alloc_vertex_subset();
     active_out->clear();
     graph->process_edges<VertexId,double>(
@@ -119,9 +125,11 @@ void compute(Graph<Empty> * graph, VertexId root) {
     levels.back()
   );
   graph->transpose();
+  #ifdef SHOW
   if (graph->partition_id==0) {
     printf("backward\n");
   }
+  #endif
   while (levels.size() > 1) {
     graph->process_edges<VertexId,double>(
       [&](VertexId src){
@@ -178,25 +186,27 @@ void compute(Graph<Empty> * graph, VertexId root) {
 
   exec_time += get_time();
   if (graph->partition_id==0) {
-    printf("exec_time=%lf(s)\n", exec_time);
+    printf("exec_time=%lf(s)\n", exec_time); 
   }
-
   graph->gather_vertex_array(dependencies, 0);
   graph->gather_vertex_array(inv_num_paths, 0);
+  #ifdef SHOW
   if (graph->partition_id==0) {
     for (VertexId v_i=0;v_i<20;v_i++) {
       printf("%lf %lf\n", dependencies[v_i], 1 / inv_num_paths[v_i]);
     }
   }
-
+  #endif
   graph->dealloc_vertex_array(dependencies);
   graph->dealloc_vertex_array(inv_num_paths);
   delete visited;
   delete active_all;
+
+  return exec_time;
 }
 
 // an implementation which uses an array to store the levels instead of multiple bitmaps
-void compute_compact(Graph<Empty> * graph, VertexId root) {
+double compute_compact(Graph<Empty> * graph, VertexId root) {
   double exec_time = 0;
   exec_time -= get_time();
 
@@ -228,13 +238,17 @@ void compute_compact(Graph<Empty> * graph, VertexId root) {
   graph->fill_vertex_array(num_paths, 0.0);
   num_paths[root] = 1.0;
   VertexId i_i;
+  #ifdef SHOW
   if (graph->partition_id==0) {
     printf("forward\n");
   }
+  #endif
   for (i_i=0;active_vertices>0;i_i++) {
+    #ifdef SHOW
     if (graph->partition_id==0) {
       printf("active(%d)>=%u\n", i_i, active_vertices);
     }
+    #endif
     active_out->clear();
     graph->process_edges<VertexId,double>(
       [&](VertexId src){
@@ -315,9 +329,11 @@ void compute_compact(Graph<Empty> * graph, VertexId root) {
     active_in
   );
   graph->transpose();
+  #ifdef SHOW
   if (graph->partition_id==0) {
     printf("backward\n");
   }
+  #endif
   while (i_i > 0) {
     graph->process_edges<VertexId,double>(
       [&](VertexId src){
@@ -389,25 +405,28 @@ void compute_compact(Graph<Empty> * graph, VertexId root) {
 
   graph->gather_vertex_array(dependencies, 0);
   graph->gather_vertex_array(inv_num_paths, 0);
+  #ifdef SHOW
   if (graph->partition_id==0) {
     for (VertexId v_i=0;v_i<20;v_i++) {
       printf("%lf %lf\n", dependencies[v_i], 1 / inv_num_paths[v_i]);
     }
   }
-
+  #endif
   graph->dealloc_vertex_array(dependencies);
   graph->dealloc_vertex_array(inv_num_paths);
   delete visited;
   delete active_all;
   delete active_in;
   delete active_out;
+
+  return exec_time;
 }
 
 int main(int argc, char ** argv) {
   MPI_Instance mpi(&argc, &argv);
 
-  if (argc<4) {
-    printf("bc [file] [vertices] [root]\n");
+  if (argc<5) {
+    printf("bc [file] [vertices] [root] [rounds]\n");
     exit(-1);
   }
 
@@ -415,19 +434,23 @@ int main(int argc, char ** argv) {
   graph = new Graph<Empty>();
   VertexId root = std::atoi(argv[3]);
   graph->load_directed(argv[1], std::atoi(argv[2]));
+  int rounds = std::atoi(argv[4]);
 
-  #if COMPACT
-  compute_compact(graph, root);
-  #else
-  compute(graph, root);
-  #endif
-  for (int run=0;run<5;run++) {
+  double aver_time=0;
+  for (int run=0;run<rounds;run++) {
     #if COMPACT
-    compute_compact(graph, root);
+    aver_time += compute_compact(graph, root);
     #else
-    compute(graph, root);
+    aver_time += compute(graph, root);
     #endif
   }
+
+    int world_rank;
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  if(world_rank==0)
+      printf("aver_time = %lf\n", aver_time/rounds);
+
 
   delete graph;
   return 0;

@@ -19,7 +19,7 @@ Copyright (c) 2014-2015 Xiaowei Zhu, Tsinghua University
 
 #include "core/graph.hpp"
 
-void compute(Graph<Empty> * graph) {
+double compute(Graph<Empty> * graph) {
   double exec_time = 0;
   exec_time -= get_time();
 
@@ -37,9 +37,11 @@ void compute(Graph<Empty> * graph) {
   );
 
   for (int i_i=0;active_vertices>0;i_i++) {
+    #ifdef SHOW
     if (graph->partition_id==0) {
       printf("active(%d)>=%u\n", i_i, active_vertices);
     }
+    #endif
     active_out->clear();
     active_vertices = graph->process_edges<VertexId,VertexId>(
       [&](VertexId src){
@@ -106,24 +108,32 @@ void compute(Graph<Empty> * graph) {
   graph->dealloc_vertex_array(label);
   delete active_in;
   delete active_out;
+
+  return exec_time;
 }
 
 int main(int argc, char ** argv) {
   MPI_Instance mpi(&argc, &argv);
 
-  if (argc<3) {
-    printf("cc [file] [vertices]\n");
+  if (argc<4) {
+    printf("cc [file] [vertices] [rounds]\n");
     exit(-1);
   }
+  int rounds = std::atoi(argv[3]);
 
   Graph<Empty> * graph;
   graph = new Graph<Empty>();
   graph->load_undirected_from_directed(argv[1], std::atoi(argv[2]));
 
-  compute(graph);
-  for (int run=0;run<5;run++) {
-    compute(graph);
+  double aver_time=0;
+  for (int run=0;run<rounds;run++) {
+    aver_time+=compute(graph);
   }
+
+  // int world_rank;
+  // MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  // if(world_rank==0)
+  //     printf("aver_time = %lf\n", aver_time/rounds);
 
   delete graph;
   return 0;

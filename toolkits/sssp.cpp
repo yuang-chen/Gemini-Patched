@@ -21,7 +21,7 @@ Copyright (c) 2014-2015 Xiaowei Zhu, Tsinghua University
 
 typedef float Weight;
 
-void compute(Graph<Weight> * graph, VertexId root) {
+double compute(Graph<Weight> * graph, VertexId root) {
   double exec_time = 0;
   exec_time -= get_time();
 
@@ -35,9 +35,9 @@ void compute(Graph<Weight> * graph, VertexId root) {
   VertexId active_vertices = 1;
   
   for (int i_i=0;active_vertices>0;i_i++) {
-    if (graph->partition_id==0) {
-      printf("active(%d)>=%u\n", i_i, active_vertices);
-    }
+    // if (graph->partition_id==0) {
+    //   printf("active(%d)>=%u\n", i_i, active_vertices);
+    // }
     active_out->clear();
     active_vertices = graph->process_edges<VertexId,Weight>(
       [&](VertexId src){
@@ -84,9 +84,9 @@ void compute(Graph<Weight> * graph, VertexId root) {
   }
 
   exec_time += get_time();
-  if (graph->partition_id==0) {
-    printf("exec_time=%lf(s)\n", exec_time);
-  }
+  // if (graph->partition_id==0) {
+  //   printf("exec_time=%lf(s)\n", exec_time);
+  // }
 
   graph->gather_vertex_array(distance, 0);
   if (graph->partition_id==0) {
@@ -102,25 +102,34 @@ void compute(Graph<Weight> * graph, VertexId root) {
   graph->dealloc_vertex_array(distance);
   delete active_in;
   delete active_out;
+
+  return exec_time;
 }
 
 int main(int argc, char ** argv) {
   MPI_Instance mpi(&argc, &argv);
 
-  if (argc<4) {
-    printf("sssp [file] [vertices] [root]\n");
+  if (argc<5) {
+    printf("sssp [file] [vertices] [root] [rounds]\n");
     exit(-1);
   }
 
   Graph<Weight> * graph;
   graph = new Graph<Weight>();
-  graph->load_directed(argv[1], std::atoi(argv[2]));
   VertexId root = std::atoi(argv[3]);
+  graph->load_directed(argv[1], std::atoi(argv[2]));
+  int rounds = std::atoi(argv[4]);
 
-  compute(graph, root);
-  for (int run=0;run<5;run++) {
-    compute(graph, root);
+  double aver_time = 0;
+  for (int run=0;run<rounds;run++) {
+    aver_time += compute(graph, root);
   }
+
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  if(world_rank==0)
+      printf("aver_time = %lf\n", aver_time/rounds);
+
 
   delete graph;
   return 0;
